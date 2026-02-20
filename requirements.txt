@@ -1,0 +1,4 @@
+flask>=3.0
+zeep>=4.2
+lxml>=4.9
+requests>=2.31

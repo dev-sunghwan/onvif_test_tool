@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ONVIF Command Tester</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark position-relative">
+    <div class="container-fluid">
+        <span class="navbar-brand">
+            <i class="bi bi-camera-video me-2"></i>ONVIF Command Tester
+        </span>
+        <span class="text-white-50 small">Hanwha Vision EMEA</span>
+    </div>
+    <div class="accent-bar"></div>
+</nav>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Main content -->
+<div class="container-fluid py-3">
+    <div class="row">
+
+        <!-- LEFT PANEL -->
+        <div class="col-lg-5" id="left-panel">
+
+            <!-- 1. Camera Connection -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-hdd-network me-1"></i> Camera Connection
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-8">
+                            <label class="form-label">IP Address</label>
+                            <input type="text" class="form-control form-control-sm" id="camera-ip"
+                                   placeholder="192.168.1.100" value="">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">Port</label>
+                            <input type="number" class="form-control form-control-sm" id="camera-port"
+                                   placeholder="80" value="80">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control form-control-sm" id="camera-user"
+                                   placeholder="admin" value="">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Password</label>
+                            <div class="input-group input-group-sm">
+                                <input type="password" class="form-control form-control-sm" id="camera-pass"
+                                       placeholder="password">
+                                <button class="btn btn-outline-secondary" type="button" id="toggle-pass"
+                                        title="Show/hide password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button class="btn btn-sm btn-outline-primary w-100" id="btn-test-connection">
+                                <i class="bi bi-plug me-1"></i> Test Connection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. WSDL Service -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-file-code me-1"></i> WSDL Service
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label">Preset</label>
+                            <select class="form-select form-select-sm" id="wsdl-preset">
+                                <option value="">-- Custom URL --</option>
+                                {% set ns = namespace(current_category='') %}
+                                {% for name, preset in presets.items() %}
+                                    {% if preset.category != ns.current_category %}
+                                        {% if ns.current_category != '' %}</optgroup>{% endif %}
+                                        {% set ns.current_category = preset.category %}
+                                        <optgroup label="{{ preset.category }}">
+                                    {% endif %}
+                                    <option value="{{ preset.wsdl }}" data-binding="{{ preset.binding }}"
+                                            data-namespace="{{ preset.namespace }}">{{ name }}</option>
+                                {% endfor %}
+                                {% if ns.current_category != '' %}</optgroup>{% endif %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">WSDL URL</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm" id="wsdl-url"
+                                       placeholder="https://www.onvif.org/ver10/media/wsdl/media.wsdl">
+                                <button class="btn btn-primary" id="btn-load-wsdl">
+                                    <i class="bi bi-download me-1"></i> Load
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12" id="wsdl-status" style="display:none;">
+                            <div class="alert alert-sm py-1 px-2 mb-0 small"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Operation -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-terminal me-1"></i> Operation
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label">Binding</label>
+                            <select class="form-select form-select-sm" id="binding-select" disabled>
+                                <option value="">-- Load WSDL first --</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Operation</label>
+                            <select class="form-select form-select-sm" id="operation-select" disabled>
+                                <option value="">-- Select binding first --</option>
+                            </select>
+                        </div>
+
+                        <!-- Parameters -->
+                        <div class="col-12" id="params-container" style="display:none;">
+                            <label class="form-label">Parameters</label>
+                            <div id="params-form"></div>
+                        </div>
+
+                        <div class="col-12 mt-2">
+                            <button class="btn btn-primary w-100" id="btn-execute" disabled>
+                                <i class="bi bi-play-fill me-1"></i> Execute
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="col-lg-7">
+            <div class="card" id="result-panel">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-code-square me-1"></i> Result</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="btn-copy" title="Copy to clipboard"
+                            style="display:none;">
+                        <i class="bi bi-clipboard me-1"></i> Copy
+                    </button>
+                </div>
+                <div class="card-body p-0 position-relative">
+                    <!-- Loading overlay -->
+                    <div class="loading-overlay" id="loading-overlay" style="display:none;">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status"></div>
+                            <div class="mt-2 small text-muted" id="loading-text">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs px-2 pt-1" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="tab"
+                                    data-bs-target="#tab-json" type="button">JSON Result</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab"
+                                    data-bs-target="#tab-req-xml" type="button">Request XML</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab"
+                                    data-bs-target="#tab-res-xml" type="button">Response XML</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab content -->
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tab-json">
+                            <div class="result-content" id="result-json">
+                                <span class="text-muted">Execute an operation to see results here.</span>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="tab-req-xml">
+                            <div class="result-content" id="result-req-xml">
+                                <span class="text-muted">Request XML will appear here.</span>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="tab-res-xml">
+                            <div class="result-content" id="result-res-xml">
+                                <span class="text-muted">Response XML will appear here.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status bar -->
+                    <div class="status-bar" id="status-bar" style="display:none;">
+                        <span id="status-badge"></span>
+                        <span id="status-time"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/param-builder.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
