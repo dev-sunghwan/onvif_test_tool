@@ -313,3 +313,208 @@ zeep의 `serialize_object()`는 XSD `any` 타입이나 Extension 요소를 lxml 
 
 ### 수정하지 않은 파일
 - `app.py`, `command_executor.py`, `serializer.py`, `wsdl_loader.py`, `type_introspector.py`, `app.js`, `param-builder.js` — 기존 아키텍처가 동적으로 동작하므로 변경 불필요
+
+---
+
+## Bugfix #4 - AnyAttribute 객체로 인한 파라미터 스키마 로드 실패 (2026-02-21)
+
+### 증상
+Media v10/GetStreamUri, Imaging/SetImagingSettings, Media v10/SetVideoEncoderConfiguration 등의 오퍼레이션에서 파라미터 스키마를 로드하면:
+```
+'AnyAttribute' object has no attribute 'type'
+```
+
+### 원인
+ONVIF XSD 타입(예: StreamSetup, VideoSourceConfiguration 등)에 `anyAttribute` 선언이 포함됨. zeep은 이를 `AnyAttribute` 객체로 표현하는데, 이 객체에는 `.type` 속성이 없음. `type_introspector.py`의 두 곳에서 `.type`을 무조건 접근하여 AttributeError 발생:
+
+1. `_resolve_elements()` 반복문 — `element.type` 접근 시 (top-level elements에서 발생)
+2. `elem_type.attributes` 반복문 — `attr_val.type` 접근 시 (complex type의 attributes에서 발생)
+
+### 수정
+
+**`onvif_client/type_introspector.py`**
+```python
+# 1. elements 반복 시 AnyAttribute 스킵
+for attr_name, element in elements:
+    if not hasattr(element, "type"):
+        continue
+    ...
+
+# 2. attributes 반복 시 AnyAttribute 스킵
+for attr_key, attr_val in elem_type.attributes:
+    if not hasattr(attr_val, "type"):
+        continue
+    ...
+```
+
+### 검증
+수정 전 FAIL → 수정 후 ALL PASS:
+- Media v10/GetStreamUri: 2 params (StreamSetup, ProfileToken)
+- Imaging/SetImagingSettings: 3 params (VideoSourceToken, ImagingSettings, ForcePersistence)
+- Media v10/SetVideoEncoderConfiguration: 2 params (Configuration, ForcePersistence)
+
+---
+
+## QA Test Report (2026-02-21)
+
+### 테스트 환경
+- 카메라: **Hanwha Vision XNP-6400R** (PTZ 카메라, 오디오 미지원)
+- 펌웨어: 2.24.01_20251209_R38
+- 카메라 IP: 192.168.3.68:80
+- 프로필 토큰: DefaultProfile-01-0 (MJPEG), DefaultProfile-02-0 (H.264) 외 4개
+- VideoSource 토큰: VideoSourceToken-0
+
+### Phase 1: WSDL Load Tests — 16/16 PASS
+
+| # | 서비스 | 바인딩 수 | 오퍼레이션 수 | 결과 |
+|---|--------|-----------|--------------|------|
+| 1 | Device Management | 1 (DeviceBinding) | 103 | PASS |
+| 2 | Media (ver10) | 1 (MediaBinding) | 79 | PASS |
+| 3 | Media2 (ver20) | 1 (Media2Binding) | 58 | PASS |
+| 4 | PTZ | 1 (PTZBinding) | 29 | PASS |
+| 5 | Imaging | 1 (ImagingBinding) | 11 | PASS |
+| 6 | Events | 8 (EventBinding 외 7) | 23 | PASS |
+| 7 | Analytics | 2 (AnalyticsEngine, RuleEngine) | 14 | PASS |
+| 8 | Device I/O | 1 (DeviceIOBinding) | 29 | PASS |
+| 9 | Recording | 1 (RecordingBinding) | 22 | PASS |
+| 10 | Search | 1 (SearchBinding) | 14 | PASS |
+| 11 | Replay | 1 (ReplayBinding) | 4 | PASS |
+| 12 | Provisioning | 1 (ProvisioningBinding) | 8 | PASS |
+| 13 | Thermal | 1 (ThermalBinding) | 8 | PASS |
+| 14 | Access Control | 1 (PACSBinding) | 24 | PASS |
+| 15 | Door Control | 1 (DoorControlBinding) | 19 | PASS |
+| 16 | Credential | 1 (CredentialBinding) | 28 | PASS |
+
+**총 446개 오퍼레이션** 정상 로드
+
+### Phase 2: Execute Tests — 31 PASS, 7 EXPECTED_FAIL, 0 FAIL
+
+#### 성공 (PASS)
+| 서비스 | 오퍼레이션 | 응답 시간 |
+|--------|-----------|-----------|
+| Device Mgmt | GetDeviceInformation | 71ms |
+| Device Mgmt | GetServices | 80ms |
+| Device Mgmt | GetCapabilities | 64ms |
+| Device Mgmt | GetNetworkInterfaces | 48ms |
+| Device Mgmt | GetSystemDateAndTime | 54ms |
+| Device Mgmt | GetDNS | 34ms |
+| Device Mgmt | GetUsers | 78ms |
+| Device Mgmt | GetScopes | 62ms |
+| Media v10 | GetProfiles | 240ms |
+| Media v10 | GetVideoSources | 181ms |
+| Media v10 | GetVideoEncoderConfigurations | 50ms |
+| Media v10 | GetStreamUri (재테스트) | 96ms |
+| Media2 v20 | GetProfiles | 106ms |
+| Media2 v20 | GetVideoEncoderConfigurations | 106ms |
+| PTZ | GetConfigurations | 76ms |
+| PTZ | GetPresets (재테스트) | 60ms |
+| PTZ | GetStatus (재테스트) | 198ms |
+| PTZ | GetServiceCapabilities | 8ms |
+| Imaging | GetImagingSettings (재테스트) | 139ms |
+| Imaging | GetOptions (재테스트) | 113ms |
+| Imaging | GetServiceCapabilities | 10ms |
+| Events | GetEventProperties | 81ms |
+| Events | GetServiceCapabilities | 70ms |
+| Analytics | GetServiceCapabilities | 8ms |
+| Device I/O | GetServiceCapabilities | 8ms |
+| Recording | GetRecordings | 76ms |
+| Recording | GetServiceCapabilities | 72ms |
+| Search | GetServiceCapabilities | 67ms |
+| Replay | GetReplayConfiguration | 42ms |
+| Replay | GetServiceCapabilities | 79ms |
+
+※ 재테스트: 최초 테스트에서 하드코딩 토큰(profile_1, VideoSource_0) 사용으로 FAIL → 카메라 실제 토큰(DefaultProfile-01-0, VideoSourceToken-0)으로 재테스트 시 PASS
+
+#### 카메라 미지원 (EXPECTED_FAIL)
+| 서비스 | 오퍼레이션 | 사유 |
+|--------|-----------|------|
+| Media v10 | GetAudioSources | XNP-6400R은 오디오 미지원 |
+| Device I/O | GetVideoOutputs | Optional Action Not Implemented |
+| Device I/O | GetRelayOutputs | No relay output capability |
+| Provisioning | GetServiceCapabilities | 서비스 미지원 |
+| Thermal | GetServiceCapabilities | Thermal is not supported (일반 카메라) |
+| Access Control | GetServiceCapabilities | PACS 미지원 (카메라 제품) |
+| Door Control | GetServiceCapabilities | 도어 제어 미지원 |
+| Credential | GetServiceCapabilities | 자격 증명 미지원 |
+
+### Phase 3: Parameter Schema Tests — 6/6 PASS (Bugfix #4 적용 후)
+
+| 서비스/오퍼레이션 | 파라미터 수 | 파라미터 |
+|-------------------|-----------|----------|
+| PTZ/GetPresets | 1 | ProfileToken |
+| PTZ/ContinuousMove | 3 | ProfileToken, Velocity, Timeout |
+| Media v10/GetStreamUri | 2 | StreamSetup, ProfileToken |
+| Device Mgmt/SetSystemDateAndTime | 4 | DateTimeType, DaylightSavings, TimeZone, UTCDateTime |
+| Imaging/SetImagingSettings | 3 | VideoSourceToken, ImagingSettings, ForcePersistence |
+| Events/CreatePullPointSubscription | 4 | Filter, InitialTerminationTime, SubscriptionPolicy, _value_1 |
+
+### 최종 요약
+
+| 카테고리 | 테스트 수 | PASS | EXPECTED_FAIL | FAIL |
+|----------|----------|------|---------------|------|
+| WSDL Load | 16 | 16 | 0 | 0 |
+| Execute | 38 | 31 | 7 | 0 |
+| Params | 6 | 6 | 0 | 0 |
+| **합계** | **60** | **53** | **7** | **0** |
+
+### QA 중 발견/수정된 버그
+- **Bugfix #4**: `AnyAttribute` 객체의 `.type` 접근 시 AttributeError → `hasattr()` guard 추가로 해결
+
+---
+
+## Enhancement #2 - PyInstaller exe 패키징 (2026-02-21)
+
+### 변경 내용
+다른 PC에서 Python 설치 없이 단일 exe 파일로 실행할 수 있도록 PyInstaller 빌드 지원 추가.
+
+### 수정/추가 파일
+
+**`app.py`** - PyInstaller 번들 환경 지원
+- `_get_base_path()`: `sys._MEIPASS`(PyInstaller 임시 경로) 또는 일반 실행 경로 반환
+- Flask 생성 시 `template_folder`, `static_folder` 명시적으로 지정
+- exe 실행 시 `debug=False`, 1.5초 후 브라우저 자동 오픈 (`threading.Timer` + `webbrowser.open`)
+
+**`onvif_tester.spec`** (신규) - PyInstaller 빌드 스펙
+- `--onefile`: 단일 exe로 번들
+- `datas`: templates/, static/ 디렉토리 포함
+- `hiddenimports`: zeep, lxml 관련 모듈 명시
+- `console=True`: Flask 서버 로그 확인 및 Ctrl+C 종료 가능
+
+**`build.bat`** (신규) - 빌드 자동화
+- venv 생성/활성화 → 의존성 설치 → pyinstaller 설치 → exe 빌드
+- 빌드 결과 `dist\ONVIF_Command_Tester.exe` 출력
+
+### 수정하지 않은 파일
+- `config.py`, `onvif_client/*.py`, `templates/`, `static/` — 변경 불필요
+- `.gitignore` — `dist/`, `build/` 이미 포함되어 있음
+- `requirements.txt` — pyinstaller는 빌드 도구이므로 런타임 의존성에 미포함
+
+### 빌드 결과
+- **파일 크기**: 17MB (단일 exe)
+- **동작 검증**: exe에서 Flask 서버 시작 → API 정상 → 카메라(XNP-6400R) GetDeviceInformation 50ms 응답 확인
+
+---
+
+## Enhancement #3 - HTTPS 연결 지원 (2026-02-21)
+
+### 변경 내용
+ONVIF 카메라의 HTTPS(443 포트) 연결을 지원. 기존에는 `http://` 프로토콜만 하드코딩되어 있어 HTTPS 카메라에 연결 불가.
+
+### 수정 파일
+
+**`onvif_client/command_executor.py`**
+- `_resolve_xaddr()`: `use_https` 파라미터에 따라 `http://` 또는 `https://` 스킴 선택
+- `execute()`: `use_https` 파라미터 추가, HTTPS 시 `requests.Session(verify=False)` + `Transport`로 자체 서명 인증서 허용
+- `urllib3.disable_warnings()`: InsecureRequestWarning 경고 억제
+
+**`app.py`**
+- `/api/execute` 라우트: 요청에서 `use_https` 필드 추출 후 `executor.execute()`에 전달
+
+**`templates/index.html`**
+- Camera Connection 섹션에 HTTPS 토글 스위치 추가 (Port 입력 옆)
+
+**`static/js/app.js`**
+- `useHttps` DOM 참조 추가
+- `executeOperation()`, `testConnection()`: `use_https: useHttps.checked` 포함
+- HTTPS 토글 이벤트: 체크 시 포트 80→443 자동 전환, 해제 시 443→80
+- `saveConnectionInfo()`/`loadConnectionInfo()`: HTTPS 상태 sessionStorage 저장/복원

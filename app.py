@@ -1,6 +1,10 @@
 """ONVIF Command Tester - Flask Web Application."""
 
 import json
+import os
+import sys
+import threading
+import webbrowser
 from datetime import date, datetime
 from datetime import time as dt_time
 from datetime import timedelta
@@ -15,6 +19,13 @@ from onvif_client.command_executor import CommandExecutor
 from onvif_client.serializer import ONVIFSerializer
 from onvif_client.type_introspector import introspect_operation
 from onvif_client.wsdl_loader import WSDLLoader
+
+
+def _get_base_path():
+    """Return base path for templates/static (handles PyInstaller bundle)."""
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
 
 
 class ONVIFJSONProvider(DefaultJSONProvider):
@@ -42,7 +53,12 @@ class ONVIFJSONProvider(DefaultJSONProvider):
         return str(o)
 
 
-app = Flask(__name__)
+_base = _get_base_path()
+app = Flask(
+    __name__,
+    template_folder=os.path.join(_base, "templates"),
+    static_folder=os.path.join(_base, "static"),
+)
 app.json_provider_class = ONVIFJSONProvider
 app.json = ONVIFJSONProvider(app)
 wsdl_loader = WSDLLoader()
@@ -109,6 +125,7 @@ def api_execute():
     username = data.get("username", "").strip()
     password = data.get("password", "")
     params = data.get("params", {})
+    use_https = data.get("use_https", False)
 
     if not all([wsdl_url, binding_name, operation_name, camera_ip, username]):
         return jsonify({"success": False, "error": "Missing required fields"}), 400
@@ -123,6 +140,7 @@ def api_execute():
             username=username,
             password=password,
             params=params,
+            use_https=use_https,
         )
         return jsonify(result)
     except Exception as e:
@@ -137,4 +155,8 @@ def api_execute():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=DEFAULT_PORT)
+    is_frozen = getattr(sys, "frozen", False)
+    port = DEFAULT_PORT
+    if is_frozen:
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    app.run(debug=not is_frozen, host="0.0.0.0", port=port)

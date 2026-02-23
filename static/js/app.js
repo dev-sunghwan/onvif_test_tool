@@ -16,6 +16,7 @@
     const cameraUser = $("#camera-user");
     const cameraPass = $("#camera-pass");
     const togglePass = $("#toggle-pass");
+    const useHttps = $("#use-https");
     const wsdlPreset = $("#wsdl-preset");
     const wsdlUrl = $("#wsdl-url");
     const btnLoadWsdl = $("#btn-load-wsdl");
@@ -42,6 +43,7 @@
             ip: cameraIp.value,
             port: cameraPort.value,
             user: cameraUser.value,
+            https: useHttps.checked,
         };
         sessionStorage.setItem("onvif_conn", JSON.stringify(info));
     }
@@ -53,6 +55,7 @@
                 cameraIp.value = info.ip || "";
                 cameraPort.value = info.port || "80";
                 cameraUser.value = info.user || "";
+                useHttps.checked = info.https || false;
             }
         } catch (e) { /* ignore */ }
     }
@@ -264,6 +267,7 @@
                 username: user,
                 password: pass,
                 params: params,
+                use_https: useHttps.checked,
             });
 
             displayResult(result);
@@ -382,6 +386,7 @@
                 username: user,
                 password: pass,
                 params: {},
+                use_https: useHttps.checked,
             });
 
             if (result.success) {
@@ -441,6 +446,17 @@
     btnTestConn.addEventListener("click", testConnection);
     btnCopy.addEventListener("click", copyResult);
     togglePass.addEventListener("click", togglePassword);
+
+    // HTTPS toggle: auto-switch port 80 <-> 443
+    useHttps.addEventListener("change", () => {
+        const current = cameraPort.value;
+        if (useHttps.checked && current === "80") {
+            cameraPort.value = "443";
+        } else if (!useHttps.checked && current === "443") {
+            cameraPort.value = "80";
+        }
+        saveConnectionInfo();
+    });
 
     // Save connection info on input change
     [cameraIp, cameraPort, cameraUser].forEach(el => {

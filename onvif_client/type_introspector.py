@@ -42,6 +42,10 @@ def _resolve_elements(elements, depth: int) -> list:
     """Recursively resolve element list into parameter descriptors."""
     result = []
     for attr_name, element in elements:
+        # Skip AnyAttribute / Any elements that lack a .type property
+        if not hasattr(element, "type"):
+            continue
+
         param = {
             "name": getattr(element, "name", None) or attr_name,
             "required": getattr(element, "min_occurs", 0) >= 1,
@@ -61,6 +65,9 @@ def _resolve_elements(elements, depth: int) -> list:
             # Check for enum restrictions on attributes
             if hasattr(elem_type, "attributes"):
                 for attr_key, attr_val in elem_type.attributes:
+                    # Skip AnyAttribute entries that lack a .type property
+                    if not hasattr(attr_val, "type"):
+                        continue
                     attr_param = {
                         "name": f"@{attr_key}",
                         "type": _get_simple_type_name(attr_val.type),

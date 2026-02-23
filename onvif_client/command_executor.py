@@ -1,14 +1,20 @@
 """Execute ONVIF operations on cameras with XML capture."""
 
 import time
+import urllib3
 
+import requests
 from lxml import etree
 from zeep.client import CachingClient, Settings
 from zeep.plugins import HistoryPlugin
+from zeep.transports import Transport
 from zeep.wsse.username import UsernameToken
 
 from config import ENDPOINT_MAP
 from .serializer import ONVIFSerializer
+
+# Suppress InsecureRequestWarning for self-signed camera certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 class CommandExecutor:
@@ -24,6 +30,7 @@ class CommandExecutor:
         username: str,
         password: str,
         params: dict,
+        use_https: bool = False,
     ) -> dict:
         """Execute an ONVIF operation and return result + raw XML.
 
@@ -43,7 +50,13 @@ class CommandExecutor:
         settings.strict = False
         settings.xml_huge_tree = True
 
-        xaddr = self._resolve_xaddr(binding_name, camera_ip, camera_port)
+        xaddr = self._resolve_xaddr(binding_name, camera_ip, camera_port, use_https)
+
+        # For HTTPS: disable SSL verification (cameras use self-signed certs)
+        session = requests.Session()
+        if use_https:
+            session.verify = False
+        transport = Transport(session=session)
 
         try:
             client = CachingClient(
@@ -51,6 +64,7 @@ class CommandExecutor:
                 wsse=UsernameToken(username, password, use_digest=True),
                 settings=settings,
                 plugins=[history],
+                transport=transport,
             )
 
             service = client.create_service(binding_name, xaddr)
@@ -88,11 +102,13 @@ class CommandExecutor:
                 "execution_time_ms": 0,
             }
 
-    def _resolve_xaddr(self, binding_name: str, ip: str, port: int) -> str:
+    def _resolve_xaddr(self, binding_name: str, ip: str, port: int,
+                        use_https: bool = False) -> str:
         """Map binding name to the correct ONVIF service endpoint path."""
         local_name = binding_name.split("}")[-1] if "}" in binding_name else binding_name
         path = ENDPOINT_MAP.get(local_name, "/onvif/device_service")
-        return f"http://{ip}:{port}{path}"
+        scheme = "https" if use_https else "http"
+        return f"{scheme}://{ip}:{port}{path}"
 
     def _extract_xml(self, history: HistoryPlugin, direction: str) -> str:
         """Extract and pretty-print XML from history plugin."""
