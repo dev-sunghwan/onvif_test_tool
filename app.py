@@ -154,6 +154,24 @@ def api_execute():
         }), 500
 
 
+@app.route("/api/check-profiles", methods=["POST"])
+def api_check_profiles():
+    """Check ONVIF profile support via GetServices."""
+    from onvif_client.profile_checker import ProfileChecker
+    data = request.get_json()
+    camera_ip = data.get("camera_ip", "").strip()
+    camera_port = int(data.get("camera_port", 80))
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    use_https = data.get("use_https", False)
+
+    if not all([camera_ip, username]):
+        return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+    result = ProfileChecker().check(camera_ip, camera_port, username, password, use_https)
+    return jsonify(result)
+
+
 if __name__ == "__main__":
     is_frozen = getattr(sys, "frozen", False)
     port = DEFAULT_PORT

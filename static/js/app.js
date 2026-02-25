@@ -27,6 +27,7 @@
     const paramsForm = $("#params-form");
     const btnExecute = $("#btn-execute");
     const btnTestConn = $("#btn-test-connection");
+    const btnCheckProfiles = $("#btn-check-profiles");
     const btnCopy = $("#btn-copy");
     const loadingOverlay = $("#loading-overlay");
     const loadingText = $("#loading-text");
@@ -408,6 +409,107 @@
         }
     }
 
+    // ── Check Profiles ─────────────────────────────────────
+    async function checkProfiles() {
+        const ip = cameraIp.value.trim();
+        const port = cameraPort.value.trim();
+        const user = cameraUser.value.trim();
+        const pass = cameraPass.value;
+
+        if (!ip || !user) {
+            showToast("Please enter camera IP and username.");
+            return;
+        }
+
+        saveConnectionInfo();
+        btnCheckProfiles.disabled = true;
+
+        const modalBody = document.getElementById("profile-modal-body");
+        modalBody.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+                <div class="mt-2 text-muted small">Fetching services from camera...</div>
+            </div>`;
+        const modal = new bootstrap.Modal(document.getElementById("profile-modal"));
+        modal.show();
+
+        try {
+            const result = await apiCall("/api/check-profiles", {
+                camera_ip: ip,
+                camera_port: parseInt(port) || 80,
+                username: user,
+                password: pass,
+                use_https: useHttps.checked,
+            });
+            renderProfileResult(result);
+        } catch (e) {
+            modalBody.innerHTML = `<div class="alert alert-danger">Error: ${escapeHtml(e.message)}</div>`;
+        } finally {
+            btnCheckProfiles.disabled = false;
+        }
+    }
+
+    function renderProfileResult(result) {
+        const body = document.getElementById("profile-modal-body");
+
+        if (!result.success) {
+            body.innerHTML = `<div class="alert alert-danger">${escapeHtml(result.error)}</div>`;
+            return;
+        }
+
+        const COLOR_MAP = {
+            primary: "primary", info: "info", success: "success",
+            warning: "warning", orange: "warning", secondary: "secondary",
+            danger: "danger", dark: "dark",
+        };
+
+        let cards = "";
+        for (const [key, supported] of Object.entries(result.profiles)) {
+            const def = result.profile_details[key];
+            const color = COLOR_MAP[def.color] || "secondary";
+            const badgeCls = supported ? `bg-${color}` : "bg-secondary";
+            const iconCls = supported
+                ? "bi-check-circle-fill text-success"
+                : "bi-x-circle text-secondary";
+            const borderCls = supported
+                ? `border-${color} border-opacity-50`
+                : "border-secondary border-opacity-25";
+            cards += `
+                <div class="col-sm-6 col-md-4 mb-2">
+                    <div class="card h-100 ${borderCls}">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="badge ${badgeCls} me-2">${escapeHtml(key)}</span>
+                                <strong class="small">${escapeHtml(def.name)}</strong>
+                                <i class="bi ${iconCls} ms-auto"></i>
+                            </div>
+                            <div class="text-muted" style="font-size:0.75rem">${escapeHtml(def.desc)}</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        const services = result.services || [];
+        let svcTable = "";
+        if (services.length > 0) {
+            const rows = services.map(s => `
+                <tr>
+                    <td class="text-break" style="font-size:0.75rem">${escapeHtml(s.namespace)}</td>
+                    <td class="text-nowrap">${escapeHtml(s.version || "-")}</td>
+                </tr>`).join("");
+            svcTable = `
+                <h6 class="mt-3 mb-2 small text-muted">Detected Services (${services.length})</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead><tr><th>Namespace</th><th>Version</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        body.innerHTML = `<div class="row g-2">${cards}</div>${svcTable}`;
+    }
+
     // ── Copy to Clipboard ──────────────────────────────────
     function copyResult() {
         // Copy the currently active tab's content
@@ -444,6 +546,7 @@
     operationSelect.addEventListener("change", onOperationChange);
     btnExecute.addEventListener("click", executeOperation);
     btnTestConn.addEventListener("click", testConnection);
+    btnCheckProfiles.addEventListener("click", checkProfiles);
     btnCopy.addEventListener("click", copyResult);
     togglePass.addEventListener("click", togglePassword);
 
