@@ -1,6 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for ONVIF Command Tester."""
 
+import re
+with open("app.py", encoding="utf-8") as _f:
+    _version = re.search(r'VERSION\s*=\s*"(.+?)"', _f.read()).group(1)
+_exe_name = f"ONVIF_Command_Tester_v{_version}"
+
 a = Analysis(
     ["app.py"],
     pathex=[],
@@ -36,7 +41,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="ONVIF_Command_Tester",
+    name=_exe_name,
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
