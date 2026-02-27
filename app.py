@@ -1,5 +1,7 @@
 """ONVIF Command Tester - Flask Web Application."""
 
+VERSION = "0.1.3"
+
 import json
 import os
 import sys
@@ -68,7 +70,7 @@ executor = CommandExecutor()
 @app.route("/")
 def index():
     """Render main page."""
-    return render_template("index.html", presets=ONVIF_PRESETS)
+    return render_template("index.html", presets=ONVIF_PRESETS, version=VERSION)
 
 
 @app.route("/api/presets", methods=["GET"])
