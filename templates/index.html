@@ -145,6 +145,15 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Operation</label>
+                            <div class="input-group input-group-sm mb-1" id="operation-filter-container" style="display:none;">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control form-control-sm" id="operation-filter"
+                                       placeholder="Filter operations...">
+                                <button class="btn btn-outline-secondary" id="btn-clear-filter" type="button"
+                                        style="display:none;" title="Clear filter">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
                             <select class="form-select form-select-sm" id="operation-select" disabled>
                                 <option value="">-- Select binding first --</option>
                             </select>

@@ -28,6 +28,9 @@
     const btnExecute = $("#btn-execute");
     const btnTestConn = $("#btn-test-connection");
     const btnCheckProfiles = $("#btn-check-profiles");
+    const operationFilterContainer = $("#operation-filter-container");
+    const operationFilter = $("#operation-filter");
+    const btnClearFilter = $("#btn-clear-filter");
     const btnCopy = $("#btn-copy");
     const loadingOverlay = $("#loading-overlay");
     const loadingText = $("#loading-text");
@@ -173,6 +176,42 @@
         alert.textContent = message;
     }
 
+    // ── Operation Filter ───────────────────────────────────
+    function applyOperationFilter() {
+        const bindingName = bindingSelect.value;
+        if (!bindingName || !currentBindings[bindingName]) return;
+
+        const query = operationFilter.value.toLowerCase().trim();
+        const allOps = currentBindings[bindingName].operations;
+        const filtered = query ? allOps.filter(op => op.toLowerCase().includes(query)) : allOps;
+        const prevSelected = operationSelect.value;
+
+        operationSelect.innerHTML = "";
+        if (filtered.length === 0) {
+            const opt = document.createElement("option");
+            opt.value = "";
+            opt.textContent = "No matching operations";
+            operationSelect.appendChild(opt);
+            btnExecute.disabled = true;
+            paramsContainer.style.display = "none";
+        } else {
+            filtered.forEach(op => {
+                const opt = document.createElement("option");
+                opt.value = op;
+                opt.textContent = op;
+                operationSelect.appendChild(opt);
+            });
+            if (prevSelected && filtered.includes(prevSelected)) {
+                operationSelect.value = prevSelected;
+            } else {
+                operationSelect.selectedIndex = 0;
+                onOperationChange();
+            }
+            btnExecute.disabled = false;
+        }
+        btnClearFilter.style.display = query ? "inline-block" : "none";
+    }
+
     // ── Binding Change ─────────────────────────────────────
     function onBindingChange() {
         const bindingName = bindingSelect.value;
@@ -181,8 +220,14 @@
             operationSelect.disabled = true;
             btnExecute.disabled = true;
             paramsContainer.style.display = "none";
+            operationFilterContainer.style.display = "none";
             return;
         }
+
+        // Reset filter on binding change
+        operationFilter.value = "";
+        btnClearFilter.style.display = "none";
+        operationFilterContainer.style.display = "flex";
 
         const ops = currentBindings[bindingName].operations;
         operationSelect.innerHTML = "";
@@ -544,6 +589,11 @@
 
     bindingSelect.addEventListener("change", onBindingChange);
     operationSelect.addEventListener("change", onOperationChange);
+    operationFilter.addEventListener("input", applyOperationFilter);
+    btnClearFilter.addEventListener("click", () => {
+        operationFilter.value = "";
+        applyOperationFilter();
+    });
     btnExecute.addEventListener("click", executeOperation);
     btnTestConn.addEventListener("click", testConnection);
     btnCheckProfiles.addEventListener("click", checkProfiles);
