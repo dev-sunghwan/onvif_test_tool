@@ -84,6 +84,21 @@ ONVIF_PRESETS = {
         "endpoint_path": "/onvif/replay_service",
         "category": "Recording & Playback",
     },
+    # ── Profile M (Metadata & Analytics) ─────────────────
+    "[M] Media2 — Metadata Config": {
+        "wsdl": "https://www.onvif.org/ver20/media/wsdl/media.wsdl",
+        "namespace": "http://www.onvif.org/ver20/media/wsdl",
+        "binding": "Media2Binding",
+        "endpoint_path": "/onvif/media_service",
+        "category": "Profile M",
+    },
+    "[M] Analytics — Rules & Modules": {
+        "wsdl": "https://www.onvif.org/ver20/analytics/wsdl/analytics.wsdl",
+        "namespace": "http://www.onvif.org/ver20/analytics/wsdl",
+        "binding": "AnalyticsEngineBinding",
+        "endpoint_path": "/onvif/analytics_service",
+        "category": "Profile M",
+    },
     # ── Specialized ───────────────────────────────────────
     "Provisioning": {
         "wsdl": "https://www.onvif.org/ver10/provisioning/wsdl/provisioning.wsdl",
