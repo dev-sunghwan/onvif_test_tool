@@ -126,10 +126,16 @@ const ParamBuilder = {
 
         const childContainer = document.createElement("div");
         childContainer.className = "ps-2";
-        childContainer.style.display = "none"; // collapsed by default
+        // Auto-expand required complex fields so required children are visible
+        const expanded = !!param.required;
+        childContainer.style.display = expanded ? "block" : "none";
 
         this.buildForm(param.children, childContainer, fullName);
         fieldset.appendChild(childContainer);
+
+        toggleBtn.innerHTML = expanded
+            ? '<i class="bi bi-chevron-up"></i>'
+            : '<i class="bi bi-chevron-down"></i>';
 
         // Toggle expand/collapse
         toggleBtn.addEventListener("click", () => {
@@ -155,7 +161,9 @@ const ParamBuilder = {
             const value = input.value.trim();
             if (value === "") return; // skip empty optional fields
 
-            const path = input.dataset.paramName.split(".");
+            // Strip leading '@' from each path segment (XML attributes are
+            // displayed as @name in the UI but passed to zeep without the prefix)
+            const path = input.dataset.paramName.split(".").map(p => p.replace(/^@/, ""));
             let current = result;
 
             for (let i = 0; i < path.length - 1; i++) {

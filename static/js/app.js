@@ -32,6 +32,9 @@
     const operationFilter = $("#operation-filter");
     const btnClearFilter = $("#btn-clear-filter");
     const btnCopy = $("#btn-copy");
+    const responseValuesCard = $("#response-values-card");
+    const responseValuesTable = $("#response-values-table");
+    const btnClearResponseValues = $("#btn-clear-response-values");
     const loadingOverlay = $("#loading-overlay");
     const loadingText = $("#loading-text");
     const resultJson = $("#result-json");
@@ -369,6 +372,46 @@
 
         // Show copy button
         btnCopy.style.display = "inline-block";
+
+        // Update response values panel
+        displayResponseValues(result.success ? result.result_json : null);
+    }
+
+    // ── Response Values Panel ──────────────────────────────
+    function displayResponseValues(resultJson) {
+        if (!resultJson) {
+            responseValuesCard.style.display = "none";
+            return;
+        }
+        const flat = flattenJson(resultJson);
+        if (flat.length === 0) {
+            responseValuesCard.style.display = "none";
+            return;
+        }
+        const rows = flat.map(({ key, value }) => `
+            <tr>
+                <td class="text-muted text-break" style="font-size:0.72rem; min-width:110px">${escapeHtml(key)}</td>
+                <td class="text-break fw-medium" style="font-size:0.72rem">${escapeHtml(value)}</td>
+                <td class="text-end pe-2">
+                    <button class="btn btn-sm py-0 px-1 btn-outline-secondary copy-val-btn"
+                            data-val="${escapeHtml(value)}" title="Copy">
+                        <i class="bi bi-clipboard" style="font-size:0.6rem"></i>
+                    </button>
+                </td>
+            </tr>`).join("");
+        responseValuesTable.innerHTML = `
+            <div class="response-values-scroll">
+                <table class="table table-sm table-hover mb-0">
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>`;
+        responseValuesCard.style.display = "block";
+        responseValuesTable.querySelectorAll(".copy-val-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                navigator.clipboard.writeText(btn.dataset.val);
+                showToast("Copied!");
+            });
+        });
     }
 
     // ── Syntax Highlighting ────────────────────────────────
@@ -404,6 +447,28 @@
         const div = document.createElement("div");
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    function flattenJson(obj, prefix = "") {
+        const flat = [];
+        if (obj === null || obj === undefined) return flat;
+        if (Array.isArray(obj)) {
+            obj.forEach((item, i) => {
+                flat.push(...flattenJson(item, prefix ? `${prefix}[${i}]` : `[${i}]`));
+            });
+        } else if (typeof obj === "object") {
+            for (const [k, v] of Object.entries(obj)) {
+                const key = prefix ? `${prefix}.${k}` : k;
+                if (v !== null && typeof v === "object") {
+                    flat.push(...flattenJson(v, key));
+                } else if (v !== null) {
+                    flat.push({ key, value: String(v) });
+                }
+            }
+        } else if (obj !== null) {
+            flat.push({ key: prefix, value: String(obj) });
+        }
+        return flat;
     }
 
     // ── Test Connection ────────────────────────────────────
@@ -598,6 +663,9 @@
     btnTestConn.addEventListener("click", testConnection);
     btnCheckProfiles.addEventListener("click", checkProfiles);
     btnCopy.addEventListener("click", copyResult);
+    btnClearResponseValues.addEventListener("click", () => {
+        responseValuesCard.style.display = "none";
+    });
     togglePass.addEventListener("click", togglePassword);
 
     // HTTPS toggle: auto-switch port 80 <-> 443
