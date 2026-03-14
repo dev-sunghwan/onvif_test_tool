@@ -32,11 +32,13 @@ Open `http://127.0.0.1:5000` in your browser.
 | Field | Description | Example |
 |-------|-------------|---------|
 | IP Address | Camera IP address | `192.168.1.100` |
-| Port | ONVIF port (usually 80) | `80` |
+| Port | ONVIF port (HTTP: 80, HTTPS: 443) | `80` |
 | Username | Camera admin account | `admin` |
 | Password | Password | `****` |
+| HTTPS | Enable HTTPS (self-signed certs accepted) | toggle |
 
-**Test Connection** button: Calls `GetDeviceInformation` via Device Management to verify connectivity (displays manufacturer, model, firmware version).
+- **Test Connection**: Calls `GetDeviceInformation` to verify connectivity (displays manufacturer, model, firmware version)
+- **Check Profiles**: Calls `GetServices` to detect supported ONVIF profiles (S / T / G / C / A / D / M / Q)
 
 ### 2. WSDL Service
 - **Preset dropdown**: Quick access to 16 ONVIF services grouped by category
@@ -48,9 +50,11 @@ Open `http://127.0.0.1:5000` in your browser.
 ### 3. Operation
 - **Binding**: Select the WSDL-defined binding (usually 1 per service)
 - **Operation**: Dropdown of available ONVIF operations
+  - Filter box to search/narrow down operations by name
 - **Parameters**: Auto-generated input form based on the operation's XSD schema
   - Required parameters marked with `*`
-  - Complex types: Collapsible fieldsets (click to expand)
+  - Required complex types: Auto-expanded on load
+  - Optional complex types: Collapsible fieldsets (click to expand)
   - Enum types: Dropdown selectors
   - Boolean: true/false selector
 - **Execute**: Sends the ONVIF command to the camera
@@ -64,6 +68,9 @@ Open `http://127.0.0.1:5000` in your browser.
 
 - Execution time (ms) and success/failure status display
 - Copy to clipboard button
+
+### 5. Last Response Values
+After a successful operation, a panel appears at the bottom of the left column showing all non-null response values as a flat key → value list (e.g. `Multicast.Address.Type`, `token`, `UseCount`). Each value has a copy button for quick reference when filling parameters for a subsequent Set* operation.
 
 ## Supported ONVIF Services
 
@@ -101,7 +108,8 @@ onvif_test_tool/
 │   ├── wsdl_loader.py          # WSDL loading, binding/operation discovery
 │   ├── type_introspector.py    # Recursive XSD type analysis → parameter schema
 │   ├── command_executor.py     # ONVIF command execution + SOAP XML capture
-│   └── serializer.py           # zeep object → JSON conversion
+│   ├── serializer.py           # zeep object → JSON conversion
+│   └── profile_checker.py      # ONVIF profile detection via GetServices
 ├── templates/
 │   └── index.html              # Bootstrap 5 SPA main page
 └── static/
@@ -120,6 +128,7 @@ onvif_test_tool/
 | `/api/load-wsdl` | POST | Load WSDL → return bindings/operations |
 | `/api/operation-params` | POST | Return operation parameter schema |
 | `/api/execute` | POST | Execute ONVIF command → JSON + XML result |
+| `/api/check-profiles` | POST | Detect supported ONVIF profiles via GetServices |
 
 ## Tech Stack
 
@@ -130,6 +139,6 @@ onvif_test_tool/
 
 ## Roadmap
 
-- GetServices()-based automatic camera service discovery
 - Command execution history with save/replay
 - Raw SOAP XML direct send mode
+- Auto-fill Set* parameters from last Get* response
