@@ -25,6 +25,13 @@ body {
     letter-spacing: 0.5px;
 }
 
+.navbar-version {
+    color: var(--hv-orange);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
 .navbar .accent-bar {
     height: 3px;
     background: var(--hv-orange);

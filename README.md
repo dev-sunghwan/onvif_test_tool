@@ -4,6 +4,8 @@ A Flask-based web application for testing ONVIF SOAP commands via a browser GUI.
 
 Enter camera IP/credentials, load a WSDL URL, and the available operations are automatically listed. Select an operation to get a dynamically generated parameter form, then execute and view results as JSON and SOAP XML.
 
+![ONVIF Command Tester screenshot](docs/screenshot.png)
+
 > [Korean documentation (README_ko.md)](README_ko.md)
 
 ## Quick Start

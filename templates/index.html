@@ -14,10 +14,10 @@
 <nav class="navbar navbar-dark position-relative">
     <div class="container-fluid">
         <span class="navbar-brand">
-            <i class="bi bi-camera-video me-2"></i>ONVIF Command Tester
+            <i class="bi bi-camera-video me-2" style="color: var(--hv-orange);"></i>ONVIF Command Tester
         </span>
         <div class="d-flex align-items-center gap-3">
-            <span class="badge bg-secondary bg-opacity-50 text-white-50">v{{ version }}</span>
+            <span class="navbar-version">v{{ version }}</span>
             <a href="https://github.com/dev-sunghwan" target="_blank" class="text-white-50 small text-decoration-none">
                 <i class="bi bi-github me-1"></i>dev-sunghwan
             </a>
@@ -76,12 +76,12 @@
                             </div>
                         </div>
                         <div class="col-12 mt-2">
-                            <button class="btn btn-sm btn-outline-primary w-100" id="btn-test-connection">
+                            <button class="btn btn-sm btn-primary w-100" id="btn-test-connection">
                                 <i class="bi bi-plug me-1"></i> Test Connection
                             </button>
                         </div>
                         <div class="col-12 mt-1">
-                            <button class="btn btn-sm btn-outline-info w-100" id="btn-check-profiles">
+                            <button class="btn btn-sm btn-outline-primary w-100" id="btn-check-profiles">
                                 <i class="bi bi-shield-check me-1"></i> Check Profiles
                             </button>
                         </div>
