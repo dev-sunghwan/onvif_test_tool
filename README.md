@@ -8,6 +8,24 @@ Enter camera IP/credentials, load a WSDL URL, and the available operations are a
 
 > [Korean documentation (README_ko.md)](README_ko.md)
 
+## Why this tool?
+
+Existing ONVIF tools don't quite fit the need for quick, interactive command testing:
+
+- **ODM (ONVIF Device Manager)** — great for browsing device info and viewing streams, but has virtually no way to call arbitrary ONVIF operations and inspect the raw response.
+- **ODTT (ONVIF Device Test Tool)** — the official conformance test tool, but it's designed for certification batch runs, not ad-hoc debugging.
+
+**ONVIF Command Tester** fills that gap: pick any operation from any ONVIF service, fill in the parameters, fire it, and immediately see the JSON result alongside the raw SOAP request and response XML. No setup beyond entering the camera IP.
+
+| | ODM | ODTT | ONVIF Command Tester |
+|---|---|---|---|
+| Interactive SOAP command test | ❌ | ❌ | ✅ |
+| Raw SOAP XML visible | ❌ | ❌ | ✅ |
+| Any ONVIF operation on demand | ❌ | ❌ | ✅ |
+| ONVIF profile detection | ❌ | ✅ | ✅ |
+| Complexity | Low | High | **Low** |
+| Target user | General users | Certification engineers | **Developers / QA engineers** |
+
 ## Quick Start
 
 ### Option 1: run.bat (Recommended, Windows)
